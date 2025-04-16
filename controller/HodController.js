@@ -6,7 +6,10 @@ const dotenv = require("dotenv");
 const cloudinary = require("../utils/imageuploadUtils");
 dotenv.config();
 const jwtkey = process.env.jwt_key;
-
+const sendmail = require("../utils/mailUtils2");
+const CollegeModel = require("../model/College");
+const Subscribers = require("../model/Subscribe");
+const AuthModel = require("../model/Auth");
 const getAllHod = async (req, res) => {
   const Hods = await HodModel.find();
 
@@ -92,7 +95,7 @@ const addProject = async (req, res) => {
     allocated_department: department,
     type: type,
     isActive: true,
-    userType: "HOD"
+    userType: "HOD",
   });
   await project.save();
 
@@ -180,9 +183,12 @@ const getProjects = async (req, res) => {
     const projects = await ProjectModel.find({
       allocated_college: allocated_college,
       allocated_department: allocated_department,
-    }).sort({ time: -1 })
+    })
+      .sort({ time: -1 })
       .populate("allocated_college")
-      .populate("allocated_department");
+      .populate("allocated_department")
+      .populate("contributers")
+      .populate("created_By");
     const projectCount = await ProjectModel.find({
       allocated_college: allocated_college,
       allocated_department: allocated_department,
@@ -301,8 +307,13 @@ const hodDashboardDetails = async (req, res) => {
     const totalProjects = await ProjectModel.countDocuments({
       allocated_department: department_id,
     });
-    const data = await HodModel.find({ _id: hod_id, allocated_college: college_id }).populate("allocated_college").populate("allocated_department")
-    res.send({ totalProjects, hodData: data })
+    const data = await HodModel.find({
+      _id: hod_id,
+      allocated_college: college_id,
+    })
+      .populate("allocated_college")
+      .populate("allocated_department");
+    res.send({ totalProjects, hodData: data });
   } catch (err) {
     console.error(err);
     return res.status(400).json({
@@ -316,7 +327,7 @@ const hodDashboardDetails = async (req, res) => {
 
 const handleStatus = async (req, res) => {
   try {
-    const { project_id, active } = req.body
+    const { project_id, active } = req.body;
     const existingProject = await ProjectModel.findById(project_id);
 
     if (!existingProject) {
@@ -327,8 +338,8 @@ const handleStatus = async (req, res) => {
         },
       });
     }
-    existingProject.isActive = active
-    const updatedProject = await existingProject.save()
+    existingProject.isActive = active;
+    const updatedProject = await existingProject.save();
     return res.status(200).json({
       data: {
         status: true,
@@ -336,7 +347,6 @@ const handleStatus = async (req, res) => {
         updatedProject: updatedProject,
       },
     });
-
   } catch (err) {
     console.error(err);
     return res.status(400).json({
@@ -346,9 +356,62 @@ const handleStatus = async (req, res) => {
       },
     });
   }
-}
+};
 
+const handleStatus2 = async (req, res) => {
+  try {
+    const { project_id, active } = req.body;
+    const existingProject = await ProjectModel.findById(project_id);
+    console.log(active, 'active');
+    if (!existingProject) {
+      return res.status(200).json({
+        data: {
+          status: false,
+          msg: "Project not found.",
+        },
+      });
+    }
 
+    existingProject.isActive = active;
+    const updatedProject = await existingProject.save();
+    console.log(active === true);
+    console.log(active === 'true');
+    if (active === 'true') {
+      const collegeId = updatedProject.allocated_college;
+
+      const college = await CollegeModel.findById(collegeId);
+      const subscribers = await Subscribers.findOne({ collegeId })
+      if (subscribers && subscribers.subscribers.length > 0) {
+        for (const subscriber of subscribers.subscribers) {
+          // Assuming you have student emails stored or can fetch them by studentId
+          // const studentEmail = await getStudentEmail(subscriber.studentId);
+          const studentDetails = await AuthModel.findById(subscriber?.studentId);
+          // console.log(studentDetails);
+          let receivermail=studentDetails?.email;
+          let subject=`New Project from ${college.name}`
+          let bodyContent=`Hey there! A new project "${updatedProject.title}" has been uploaded by ${college.name}. Check it out on the portal!`
+          sendmail(receivermail, subject, bodyContent);
+        }
+      }
+    }
+
+    return res.status(200).json({
+      data: {
+        status: true,
+        msg: "Status Updated Successfully.",
+        updatedProject,
+      },
+    });
+  } catch (err) {
+    console.error(err);
+    return res.status(400).json({
+      data: {
+        status: false,
+        msg: "Error occurred while updating project.",
+      },
+    });
+  }
+};
 module.exports = {
   getAllHod,
   getOneHod,
@@ -357,5 +420,8 @@ module.exports = {
   deleteproject,
   getProjects,
   editProject,
-  searchProject, hodDashboardDetails, handleStatus
+  searchProject,
+  hodDashboardDetails,
+  handleStatus,
+  handleStatus2,
 };

@@ -6,6 +6,8 @@ const DepartmentModel = require("../model/department");
 const ProjectModel = require("../model/projects");
 const HodModel = require("../model/hod");
 const pocModel = require("../model/poc");
+const Subscribers = require('../model/Subscribe');
+
 dotenv.config();
 const jwtkey = process.env.jwt_key;
 console.log(jwtkey);
@@ -271,6 +273,39 @@ const allUsers=async (req, res) => {
   }
 }
 
+
+
+const subscribeToCollege = async (req, res) => {
+  const { studentId, collegeId } = req.body;
+
+  try {
+    let subscriberDoc = await Subscribers.findOne({ collegeId });
+
+    if (!subscriberDoc) {
+      subscriberDoc = new Subscribers({
+        collegeId,
+        subscribers: [{ studentId, subscribedDate: new Date() }]
+      });
+    } else {
+      const alreadySubscribed = subscriberDoc.subscribers.some(
+        (s) => s.studentId.toString() === studentId
+      );
+
+      if (alreadySubscribed) {
+        return res.status(400).json({ message: "Already subscribed to this college." });
+      }
+
+      subscriberDoc.subscribers.push({ studentId, subscribedDate: new Date() });
+    }
+
+    await subscriberDoc.save();
+    res.status(200).json({ message: "Successfully subscribed!" });
+
+  } catch (err) {
+    res.status(500).json({ message: "Subscription failed", error: err.message });
+  }
+};
+
 module.exports = {
   authLogin,
   authSignup,
@@ -280,5 +315,6 @@ module.exports = {
   getuserproject,
   getSingleUser,
   viewProjects,
-  allUsers
+  allUsers,
+  subscribeToCollege
 };
