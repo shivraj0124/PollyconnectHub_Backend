@@ -307,13 +307,30 @@ const hodDashboardDetails = async (req, res) => {
     const totalProjects = await ProjectModel.countDocuments({
       allocated_department: department_id,
     });
+    const activeProjects = await ProjectModel.countDocuments({
+      allocated_department: department_id,
+      isActive: true,
+    });
+    const inActiveProjects = await ProjectModel.countDocuments({
+      allocated_department: department_id,
+      isActive: false,
+    });
+    const students = await AuthModel.countDocuments({
+      allocated_department: department_id,
+    });
     const data = await HodModel.find({
       _id: hod_id,
       allocated_college: college_id,
     })
       .populate("allocated_college")
       .populate("allocated_department");
-    res.send({ totalProjects, hodData: data });
+    res.send({
+      totalProjects,
+      hodData: data,
+      activeProjects,
+      inActiveProjects,
+      students,
+    });
   } catch (err) {
     console.error(err);
     return res.status(400).json({
@@ -362,7 +379,7 @@ const handleStatus2 = async (req, res) => {
   try {
     const { project_id, active } = req.body;
     const existingProject = await ProjectModel.findById(project_id);
-    console.log(active, 'active');
+    console.log(active, "active");
     if (!existingProject) {
       return res.status(200).json({
         data: {
@@ -375,21 +392,23 @@ const handleStatus2 = async (req, res) => {
     existingProject.isActive = active;
     const updatedProject = await existingProject.save();
     console.log(active === true);
-    console.log(active === 'true');
-    if (active === 'true') {
+    console.log(active === "true");
+    if (active === "true") {
       const collegeId = updatedProject.allocated_college;
 
       const college = await CollegeModel.findById(collegeId);
-      const subscribers = await Subscribers.findOne({ collegeId })
+      const subscribers = await Subscribers.findOne({ collegeId });
       if (subscribers && subscribers.subscribers.length > 0) {
         for (const subscriber of subscribers.subscribers) {
           // Assuming you have student emails stored or can fetch them by studentId
           // const studentEmail = await getStudentEmail(subscriber.studentId);
-          const studentDetails = await AuthModel.findById(subscriber?.studentId);
+          const studentDetails = await AuthModel.findById(
+            subscriber?.studentId
+          );
           // console.log(studentDetails);
-          let receivermail=studentDetails?.email;
-          let subject=`New Project from ${college.name}`
-          let bodyContent=`Hey there! A new project "${updatedProject.title}" has been uploaded by ${college.name}. Check it out on the portal!`
+          let receivermail = studentDetails?.email;
+          let subject = `New Project from ${college.name}`;
+          let bodyContent = `Hey there! A new project "${updatedProject.title}" has been uploaded by ${college.name}. Check it out on the portal!`;
           sendmail(receivermail, subject, bodyContent);
         }
       }
