@@ -82,6 +82,9 @@ const http = require("http");
 require("dotenv").config();
 
 const app = express();
+app.use(cors({
+    origin: "*"
+}))
 const server = http.createServer(app);
 
 
