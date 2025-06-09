@@ -79,14 +79,11 @@ const express = require("express");
 const mongoose = require("mongoose");
 const cors = require("cors");
 const http = require("http");
-const { Server } = require("socket.io");
 require("dotenv").config();
 
 const app = express();
 const server = http.createServer(app);
-const io = new Server(server, {
-    cors: { origin: "*" }
-});
+
 
 app.use(cors());
 app.use(express.json({ limit: '100mb' }));
@@ -107,7 +104,6 @@ const projectRoute = require("./routes/Project");
 const likeRoute = require("./routes/Like");
 const commentRoute = require("./routes/Comment");
 const savedRoute = require("./routes/Saved");
-const messageRoutes = require("./routes/ChatRoutes");
 // const chatBotRoutes =require("./routes/ChatBotRoute")
 // Use Routes
 app.use("/api/auth", AuthRouter);
@@ -120,7 +116,6 @@ app.use("/api/project", projectRoute);
 app.use("/api/like", likeRoute);
 app.use("/api/comment", commentRoute);
 app.use("/api/save", savedRoute);
-app.use("/api/messages", messageRoutes);
 // app.use("/api/chat", chatBotRoutes);
 
 // Image Upload Endpoint
@@ -135,30 +130,7 @@ app.post("/Image", async (req, res) => {
         return res.status(400).json({ err });
     }
 });
-const  MessageModel = require("./model/Message")
-// Real-time Chat (Socket.io)
-const activeUsers = new Map(); // Store socket IDs for connected users
 
-io.on("connection", (socket) => {
-    console.log("User connected: " + socket.id);
-    
-    socket.on("send_message", async ({ sender, receiver, message }) => {
-        try {
-            if (!sender || !receiver || !message) {
-                console.error("Invalid message data");
-                return;
-            }
-
-            // Save the message once
-            const newMessage = await MessageModel.create({ sender, receiver, message });
-
-            // Emit only to the receiver, preventing duplicate emissions
-            socket.to(receiver).emit("receive_message", newMessage);
-        } catch (error) {
-            console.error("Error sending message:", error);
-        }
-    });
-});
 
 
 server.listen(8000, () => console.log("Server started on http://localhost:8000"));
