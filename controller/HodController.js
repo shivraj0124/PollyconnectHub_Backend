@@ -277,29 +277,41 @@ const editProject = async (req, res) => {
 
 const searchProject = async (req, res) => {
   try {
-    const { search } = req.query;
-    const { allocated_department } = req.body;
-
-    console.log(search, allocated_department);
+    const { allocated_college, allocated_department } = req.body;
 
     const projects = await ProjectModel.find({
-      allocated_department: allocated_department,
-      $or: [
-        { title: { $regex: ".*" + search + ".*", $options: "i" } },
-        { description: { $regex: ".*" + search + ".*", $options: "i" } },
-        { contributers: { $regex: ".*" + search + ".*", $options: "i" } },
-        { multimedia: { $regex: ".*" + search + ".*", $options: "i" } },
-        { live_demo: { $regex: ".*" + search + ".*", $options: "i" } },
-        { type: { $regex: ".*" + search + ".*", $options: "i" } },
-      ],
+      allocated_college,
+      allocated_department,
+    })
+      .sort({ time: -1 })
+      .populate("allocated_college")
+      .populate("allocated_department")
+      .populate("contributers") // ensure 'contributers' is referenced to the User model
+      .populate("created_By");
+
+    const projectCount = await ProjectModel.countDocuments({
+      allocated_college,
+      allocated_department,
     });
 
-    res.status(200).send({ success: true, projects });
-  } catch (error) {
-    console.error("Error:", error);
-    res.status(500).send({ success: false, message: "Internal server error" });
+    return res.status(200).json({
+      data: {
+        status: true,
+        data: projects,
+        projectCount,
+      },
+    });
+  } catch (err) {
+    console.error(err);
+    return res.status(400).json({
+      data: {
+        status: false,
+        msg: err.message || "Something went wrong",
+      },
+    });
   }
 };
+
 
 const hodDashboardDetails = async (req, res) => {
   try {

@@ -108,7 +108,7 @@ const likeRoute = require("./routes/Like");
 const commentRoute = require("./routes/Comment");
 const savedRoute = require("./routes/Saved");
 const messageRoutes = require("./routes/ChatRoutes");
-
+// const chatBotRoutes =require("./routes/ChatBotRoute")
 // Use Routes
 app.use("/api/auth", AuthRouter);
 app.use("/api/admin", adminRoutes);
@@ -121,6 +121,7 @@ app.use("/api/like", likeRoute);
 app.use("/api/comment", commentRoute);
 app.use("/api/save", savedRoute);
 app.use("/api/messages", messageRoutes);
+// app.use("/api/chat", chatBotRoutes);
 
 // Image Upload Endpoint
 const cloudinary = require("./utils/imageuploadUtils");
